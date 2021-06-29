@@ -6,6 +6,7 @@ import ReactHtmlParser from "react-html-parser";
 import { HiMinusCircle, HiPlusCircle } from "react-icons/hi";
 import { BsPencil } from "react-icons/bs";
 import NumberFormat from "react-number-format";
+import ReactImageZoom from "react-image-zoom";
 
 //Assets
 import NoImg from "../assets/images/no-img.png";
@@ -17,12 +18,18 @@ const Product = (props) => {
   const { id } = props.match.params;
   const [product, setProduct] = useState(undefined);
   const [subtotal, setSubTotal] = useState(0);
+  const [hide, setHide] = useState(false);
+  const [qty, setQty] = useState(0);
+
+  let APIImg = "https://apis-dev.aspenku.com";
 
   const getDetail = async () => {
     try {
       const res = await APIV3(`product/${id}`);
       console.log("res", res);
       setProduct(res.data.data);
+      setSubTotal(parseFloat(res.data.data.sell_price));
+      setQty(res.data.data.min_qty_order);
     } catch (error) {
       console.log(error);
     }
@@ -36,38 +43,60 @@ const Product = (props) => {
     ev.target.src = NoImg;
   };
 
+  const props2 = {
+    width: 272,
+    height: 303,
+    zoomWidth: 300,
+    offset: { vertical: 0, horizontal: 10 },
+  };
+
   return (
     product !== undefined && (
       <Container className="product-detail-container">
         <Row>
           <Breadcrumb>
-            <Breadcrumb.Item href="#">Home</Breadcrumb.Item>
-            <Breadcrumb.Item href="https://getbootstrap.com/docs/4.0/components/breadcrumb/">
-              Library
+            <Breadcrumb.Item href="/">Home</Breadcrumb.Item>
+            <Breadcrumb.Item href="#">
+              {product.SpreeSubCategory.SpreeCategory.category_name}
             </Breadcrumb.Item>
-            <Breadcrumb.Item active>Data</Breadcrumb.Item>
+            <Breadcrumb.Item active>
+              {product.SpreeSubCategory.sub_category_name}
+            </Breadcrumb.Item>
           </Breadcrumb>
         </Row>
         <Row>
           <Col sm={3}>
             <div className="big-img-wrapper">
-              <img
-                src={product.SpreeProductImages[0].thumbnail_image}
+              {/* <img
+                src={APIImg + product.SpreeProductImages[0].thumbnail_image}
                 alt={product.SpreeProductImages[0].alternative_text}
                 onError={(e) => addDefaultSrc(e)}
-              />
+              /> */}
+              <div
+                onMouseEnter={() => setHide(true)}
+                onMouseLeave={() => setHide(false)}
+              >
+                <ReactImageZoom
+                  {...props2}
+                  img={APIImg + product.SpreeProductImages[0].main_image}
+                />
+              </div>
             </div>
             <div className="small-img-wrapper">
               {product.SpreeProductImages.map((image) => (
                 <img
-                  src={image.thumbnail_image}
+                  src={APIImg + image.thumbnail_image}
                   alt={image.alternative_text}
                   onError={(e) => addDefaultSrc(e)}
                 />
               ))}
             </div>
           </Col>
-          <Col sm={6} className="description-container">
+          <Col
+            sm={6}
+            className="description-container"
+            style={{ zIndex: hide ? "-1" : "" }}
+          >
             <h1>{product.name}</h1>
             <div className="sub-title-wrapper">
               <div className="sub-text">Sold {product.sold}</div>
@@ -92,7 +121,7 @@ const Product = (props) => {
               <div>Condition: {product.is_new == 0 ? "Used" : "New"}</div>
               <div>Weight: {product.weight}</div>
               <div className="mb-3">
-                Category: {product.SpreeSubCategory.SpreeCategory.category_name}
+                Category: {product.SpreeSubCategory.sub_category_name}
               </div>
               {ReactHtmlParser(product.description)}
             </div>
@@ -102,7 +131,7 @@ const Product = (props) => {
             <div className="store-wrapper">
               <div className="img-wrapper">
                 <img
-                  src={product.SpreeStore.icon_file_name}
+                  src={APIImg + product.SpreeStore.icon_file_name}
                   alt={product.SpreeStore.store_name}
                   onError={(e) => addDefaultSrc(e)}
                 />
@@ -135,12 +164,32 @@ const Product = (props) => {
               <h6>Add to Cart</h6>
               <div>
                 <div className="qty-wrapper">
-                  <HiMinusCircle size={25} color="grey" />
-                  <input value={10} type="number" readOnly />
+                  <HiMinusCircle
+                    size={25}
+                    color={
+                      subtotal == product.min_qty_order ? "grey" : "#344b69"
+                    }
+                    className="cursor-pointer"
+                    onClick={() => {
+                      if (subtotal > product.min_qty_order) {
+                        setSubTotal(subtotal - 1);
+                        setQty(qty - 1);
+                      }
+                    }}
+                  />
+                  <input value={qty} type="number" readOnly />
                   <HiPlusCircle
                     size={25}
-                    color="#344b69"
+                    color={
+                      subtotal == product.stock_on_hand ? "grey" : "#344b69"
+                    }
                     className="cursor-pointer"
+                    onClick={() => {
+                      if (subtotal < product.stock_on_hand) {
+                        setSubTotal(subtotal + 1);
+                        setQty(qty + 1);
+                      }
+                    }}
                   />
                   <div className="ml-2">Stock {product.stock_on_hand}</div>
                 </div>
@@ -158,7 +207,9 @@ const Product = (props) => {
 
                 <div className="subtotal-wrapper">
                   <div className="subtotal-txt">Subtotal</div>
-                  <div className="price-txt">Rp89.000</div>
+                  <div className="price-txt">
+                    {product.currency} {subtotal}
+                  </div>
                 </div>
 
                 <Button className="btn-cart">+ Cart</Button>
